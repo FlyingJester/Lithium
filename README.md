@@ -16,13 +16,16 @@ other scripting languages. It is very simple, but still allows prototyping
 equations, logic, and behaviour easily. Lithium provides an easy to use and
 powerful C++ API for extending and embedding ICL.
 
+Example Programs in ICL
+-----------------------
+
+Fibonacci
+
 Build Instructions
 ------------------
 
 On Unix, Linux, FreeBSD, OS X, and Windows:
-```
-    scons
-```
+`scons`
 
 This will create the main Lithium library (`lithium.lib` on Windows, 
 `liblithium.a` elsewhere) and the Lithium Standard library (`lithium_std` on

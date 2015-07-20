@@ -2,6 +2,7 @@
 #include "strtoll.h"
 #include <algorithm>
 #include <cstdlib>
+#include <cmath>
 
 namespace Lithium{
 
@@ -16,6 +17,41 @@ template<typename T>
 struct minus {
     T operator() (const T& a, const T&b) const {
         return a-b;
+    }
+};
+
+template<typename T>
+struct multiply {
+    T operator() (const T& a, const T&b) const {
+        return a*b;
+    }
+};
+
+template<typename T>
+struct divide {
+    T operator() (const T& a, const T&b) const {
+        return a/b;
+    }
+};
+
+template<typename T>
+struct remainder {
+    T operator() (const T& a, const T&b) const {
+        return a%b;
+    }
+};
+
+template<>
+struct remainder<double> {
+    double operator() (const double a, const double b) const {
+        return fmod(a, b);
+    }
+};
+
+template<>
+struct remainder<float> {
+    float operator() (const float a, const float b) const {
+        return fmod(a, b);
     }
 };
 
@@ -354,15 +390,55 @@ public:
         while(i!=end && !IsWhitespace(*i) && !IsSyntax(*i)) i++;
         return std::string(start, i);
     }
-    
+
+    template<typename T, Value::Type To>
+    bool Arithmetic(struct Value &first, const struct Value &second){
+        T t;
+        if(To==Value::Integer){
+            int64_t n;
+            err = ValueToInteger(second, n);
+            if(!err.succeeded){
+                err.error = std::string("Cannot perform arithmetic: ") + err.error;
+                return false;
+            }
+            first.value.integer = t(first.value.integer, n);
+        }
+        else if(To==Value::Floating){
+            float n;
+            err = ValueToFloating(second, n);
+            if(!err.succeeded){
+                err.error = std::string("Cannot perform arithmetic: ") + err.error;
+                return false;
+            }
+            first.value.floating = t(first.value.floating, n);
+        }
+        else{
+            err.succeeded = false;
+            err.error = std::string("Invalid arithmetic type");
+            return false;
+        }
+        
+        return true;
+    }
+
     struct Value Factor(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
         
         SkipWhitespace(i, end);
-        const std::string value = GetIdentifier(i, end);
+        std::string value = GetIdentifier(i, end);
+        
+        struct Value v = {Value::Null};
+        
+        /* If all of value is decimal digits and *i is a '.', then we should append the next identifier */
+        if((*i)=='.' && std::find_if_not(value.cbegin(), value.cend(), IsDecDigit)==value.cend() && !IsWhitespace(*(i+1))){
+            value += '.';
+            i++;
+            value+=GetIdentifier(i, end);
+            SkipWhitespace(i, end);
+        }
+        
         SkipWhitespace(i, end);
                 
         err.succeeded = true;
-        struct Value v = {Value::Null};
         
         if(IsDecDigit(value[0])){
             if(find(value.cbegin(), value.cend(), '.')!=value.cend()){
@@ -465,9 +541,82 @@ public:
     struct Value Term(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
     
         err.succeeded = true;
-        struct Value v = Factor(ctx, i, end);
+        SkipWhitespace(i, end);
+        struct Value first = Factor(ctx, i, end);
+        SkipWhitespace(i, end);
         
-        return v;
+        if(!err.succeeded) return first;
+        
+        while((*i)=='*' || (*i)=='/' || (*i)=='%'){
+            char w = *i;
+            i++;
+            SkipWhitespace(i, end);
+        
+            struct Value second = Term(ctx, i, end);
+            if(w=='*'){
+                switch(first.type){
+                    case Value::Null:
+                        err.succeeded = false;
+                        err.error = "Invalid Null expression in multiplication";
+                        break;
+                    case Value::Boolean:
+                        err.succeeded = false;
+                        err.error = "Cannot multiply boolean expressions";
+                        break;
+                    case Value::Integer:
+                        Arithmetic<multiply<int64_t>, Value::Integer>(first, second); break;
+                    case Value::Floating:
+                        Arithmetic<multiply<float>, Value::Floating>(first, second); break; 
+                    case Value::String:
+                        err.succeeded = false;
+                        err.error = "Cannot multiply string expressions";
+                        break;
+                }
+            }
+            if(w=='/'){
+                switch(first.type){
+                    case Value::Null:
+                        err.succeeded = false;
+                        err.error = "Invalid Null expression in division";
+                        break;
+                    case Value::Boolean:
+                        err.succeeded = false;
+                        err.error = "Cannot divide boolean expressions";
+                        break;
+                    case Value::Integer:
+                        Arithmetic<divide<int64_t>, Value::Integer>(first, second); break;
+                    case Value::Floating:
+                        Arithmetic<divide<float>, Value::Floating>(first, second); break; 
+                    case Value::String:
+                        err.succeeded = false;
+                        err.error = "Cannot divide string expressions";
+                        break;
+                }
+            }
+            if(w=='%'){
+                switch(first.type){
+                    case Value::Null:
+                        err.succeeded = false;
+                        err.error = "Invalid Null expression in remainder";
+                        break;
+                    case Value::Boolean:
+                        err.succeeded = false;
+                        err.error = "Cannot modulo boolean expressions";
+                        break;
+                    case Value::Integer:
+                        Arithmetic<remainder<int64_t>, Value::Integer>(first, second); break;
+                    case Value::Floating:
+                        Arithmetic<remainder<float>, Value::Floating>(first, second); break; 
+                    case Value::String:
+                        err.succeeded = false;
+                        err.error = "Cannot divide string expressions";
+                        break;
+                }
+            }
+
+        }
+        
+        return first;
     }
     
     void CleanScope(Context *ctx){
@@ -547,36 +696,6 @@ public:
                 }
             }
         }
-    }
-    
-    template<typename T, Value::Type To>
-    bool Arithmetic(struct Value &first, const struct Value &second){
-        T t;
-        if(To==Value::Integer){
-            int64_t n;
-            err = ValueToInteger(second, n);
-            if(!err.succeeded){
-                err.error = std::string("Cannot perform arithmetic: ") + err.error;
-                return false;
-            }
-            first.value.integer = t(first.value.integer, n);
-        }
-        else if(To==Value::Floating){
-            float n;
-            err = ValueToFloating(second, n);
-            if(!err.succeeded){
-                err.error = std::string("Cannot perform arithmetic: ") + err.error;
-                return false;
-            }
-            first.value.floating = t(first.value.floating, n);
-        }
-        else{
-            err.succeeded = false;
-            err.error = std::string("Invalid arithmetic type");
-            return false;
-        }
-        
-        return true;
     }
     
     struct Value Expression(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
