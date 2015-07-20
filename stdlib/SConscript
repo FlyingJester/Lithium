@@ -1,0 +1,17 @@
+
+import os
+import sys
+
+lithium_environment = Environment(ENV = os.environ)
+
+lithium_environment.Append(
+    CCFLAGS = " -g -ffast-math -Wall -pedantic -Werror ",
+    CFLAGS = " -Wextra -ansi -O3 ", 
+    CXXFLAGS = " -Wunused-parameter -fno-exceptions -fno-rtti -std=c++98 -O2 ",
+    CPPPATH = ["../"])
+
+lithium_std = lithium_environment.StaticLibrary("lithium_std", ["lithium_std.cpp", "lithium_math.cpp", "lithium_chrono.cpp"])
+
+Install("../", "lithium_std.hpp")
+
+Return("lithium_std")
