@@ -643,11 +643,34 @@ public:
         }
 
     }
+    
+    void Scope(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
+        scope++;
+        while(i!=end && (*i)!= '.'){
+            SkipWhitespace(i, end);
+            Statement(ctx, i, end);
+            SkipWhitespace(i, end);
+            if(i==end){
+                err.succeeded = false;
+                err.error = "Unexpected end of input before end of scope";
+                return;
+            }
+        }
+        /* Move off the '.' */
+        i++;
+        SkipWhitespace(i, end);
 
+        CleanScope(ctx);
+        
+        scope--;
+
+    }
+    
     void If(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
         SkipWhitespace(i, end);
         
         struct Value v = Expression(ctx, i, end);
+                
         if(!err.succeeded) return;
         
         bool c;
@@ -669,23 +692,7 @@ public:
             
             SkipWhitespace(i, end);
             if(c){
-                scope++;
-                while(i!=end && (*i)!= '.'){
-                    SkipWhitespace(i, end);
-                    Statement(ctx, i, end);
-                    SkipWhitespace(i, end);
-                    if(i==end){
-                        err.succeeded = false;
-                        err.error = "Unexpected end of input before end of scope";
-                        return;
-                    }
-                }
-                /* Move off the '.' */
-                i++;
-                SkipWhitespace(i, end);
-
-                scope--;
-          
+                Scope(ctx, i, end);
             }
             else{
                 SkipScope(i, end);
@@ -695,6 +702,44 @@ public:
                     return;
                 }
             }
+        }
+    }
+    
+    void Loop(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
+        /* This is a bit of a hack... */
+        SkipWhitespace(i, end);
+        const std::string::const_iterator conditional_start = i;
+        struct Value v = Expression(ctx, i, end);
+        const std::string::const_iterator conditional_end  = i;
+        const std::string conditional(conditional_start, conditional_end);
+        
+        SkipWhitespace(i, end);
+        
+        if((*i)!=':'){
+            err.succeeded = false;
+            err.error = "Expected ':'";
+            return;
+        }
+        
+        i++;
+
+        SkipWhitespace(i, end);
+
+        const std::string::const_iterator scope_start  = i;        
+        bool c;
+        err = ValueToBoolean(v, c);
+        if(!err.succeeded)
+            return;
+        
+        while(c){
+            i = scope_start;
+            Scope(ctx, i, end);
+            i = conditional_start;
+            v = Expression(ctx, i, conditional_end);
+            i = scope_start;
+            err = ValueToBoolean(v, c);
+            if(!err.succeeded)
+                return;
         }
     }
     
@@ -872,6 +917,9 @@ public:
             Int(ctx, i, end);
         }
         else if(word=="if"){
+            If(ctx, i, end);   
+        }
+        else if(word=="loop"){
             If(ctx, i, end);   
         }
         else if(word=="set"){
