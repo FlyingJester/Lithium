@@ -16,10 +16,16 @@ if os.getenv('LINK', 'none') != 'none':
     print "using linker ", os.environ.get('LINK')
     lithium_environment.Replace(LINK = os.environ.get('LINK'))
 
-lithium_environment.Append(
-    CCFLAGS = " -g -ffast-math -Wall -pedantic -Werror ",
-    CFLAGS = " -Wextra -ansi -O3 ", 
-    CXXFLAGS = " -Wunused-parameter -fno-exceptions -fno-rtti -std=c++98 -O2 ")
+if sys.platform.startswith("win"):
+    lithium_environment.Append(
+        CCFLAGS = " -g /fp:fast /Za /O2 /Wall ",
+        CXXFLAGS = " /EHsc ",
+        CPPPATH = ["../"])
+else:
+    lithium_environment.Append(
+        CCFLAGS = " -g -ffast-math -Wall -pedantic -Werror ",
+        CFLAGS = " -Wextra -ansi -O3 ", 
+        CXXFLAGS = " -Wunused-parameter -fno-exceptions -fno-rtti -std=c++98 -O2 ")
 
 lithium = lithium_environment.StaticLibrary("lithium", ["lithium.cpp", "strtoll.c"])
 

@@ -20,9 +20,6 @@ if sys.platform.startswith("win"):
         CCFLAGS = " -g /fp:fast /Za /O2 /Wall ",
         CXXFLAGS = " /EHsc ",
         CPPPATH = ["../"])
-    if os.getenv('LITHIUM_OPT', 'none') != 'none':
-        print "using CXX ", os.environ.get('CXX')
-        lithium_environment.Replace(CXX = os.environ.get('CXX'))
 else:
     lithium_environment.Append(
         CCFLAGS = " -g -ffast-math -Wall -pedantic -Werror ",
