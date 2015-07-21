@@ -420,7 +420,33 @@ public:
         
         return true;
     }
-
+    
+    template<template<typename> class T>
+    inline bool CastingTypedArithmetic(struct Value &first, const struct Value &second, const char *noun = "arithmetic", const char *verb = "calculate"){
+        switch(first.type){
+            case Value::Null:
+                err.succeeded = false;
+                err.error = "Invalid Null expression in ";
+                err.error += noun;
+            return false;
+            case Value::Boolean:
+                err.succeeded = false;
+                err.error = std::string("Cannot ") + verb + " boolean expressions";
+            return false;
+            case Value::Integer:
+                Arithmetic<T<int64_t>, Value::Integer>(first, second);
+            return true;
+            case Value::Floating:
+                Arithmetic<T<float>, Value::Floating>(first, second);
+            return true; 
+            case Value::String:
+                err.succeeded = false;
+                err.error = std::string("Cannot ") + verb + " string expressions";
+            return true;
+        }
+        return true;
+    }
+    
     struct Value Factor(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
         
         SkipWhitespace(i, end);
@@ -565,68 +591,19 @@ public:
             i++;
             SkipWhitespace(i, end);
         
-            struct Value second = Term(ctx, i, end);
+            struct Value second = Factor(ctx, i, end);
             if(w=='*'){
-                switch(first.type){
-                    case Value::Null:
-                        err.succeeded = false;
-                        err.error = "Invalid Null expression in multiplication";
-                        break;
-                    case Value::Boolean:
-                        err.succeeded = false;
-                        err.error = "Cannot multiply boolean expressions";
-                        break;
-                    case Value::Integer:
-                        Arithmetic<multiply<int64_t>, Value::Integer>(first, second); break;
-                    case Value::Floating:
-                        Arithmetic<multiply<float>, Value::Floating>(first, second); break; 
-                    case Value::String:
-                        err.succeeded = false;
-                        err.error = "Cannot multiply string expressions";
-                        break;
-                }
+                CastingTypedArithmetic<multiply>(first, second, "multiplication", "multiply");
             }
             if(w=='/'){
-                switch(first.type){
-                    case Value::Null:
-                        err.succeeded = false;
-                        err.error = "Invalid Null expression in division";
-                        break;
-                    case Value::Boolean:
-                        err.succeeded = false;
-                        err.error = "Cannot divide boolean expressions";
-                        break;
-                    case Value::Integer:
-                        Arithmetic<divide<int64_t>, Value::Integer>(first, second); break;
-                    case Value::Floating:
-                        Arithmetic<divide<float>, Value::Floating>(first, second); break; 
-                    case Value::String:
-                        err.succeeded = false;
-                        err.error = "Cannot divide string expressions";
-                        break;
-                }
+                CastingTypedArithmetic<divide>(first, second, "division", "divide");
             }
             if(w=='%'){
-                switch(first.type){
-                    case Value::Null:
-                        err.succeeded = false;
-                        err.error = "Invalid Null expression in remainder";
-                        break;
-                    case Value::Boolean:
-                        err.succeeded = false;
-                        err.error = "Cannot modulo boolean expressions";
-                        break;
-                    case Value::Integer:
-                        Arithmetic<remainder<int64_t>, Value::Integer>(first, second); break;
-                    case Value::Floating:
-                        Arithmetic<remainder<float>, Value::Floating>(first, second); break; 
-                    case Value::String:
-                        err.succeeded = false;
-                        err.error = "Cannot divide string expressions";
-                        break;
-                }
+                CastingTypedArithmetic<remainder>(first, second, "remainder", "modulus");
             }
-
+            
+            if(second.type==Value::String) free(second.value.string);
+            
         }
         
         return first;
@@ -772,54 +749,22 @@ public:
         
             struct Value second = Term(ctx, i, end);
             if(w=='+'){
-                
-                switch(first.type){
-                    case Value::Null:
-                        err.succeeded = false;
-                        err.error = "Invalid Null expression in addition";
-                        break;
-                    case Value::Boolean:
-                        err.succeeded = false;
-                        err.error = "Cannot add boolean expressions";
-                        break;
-                    case Value::Integer:
-                        Arithmetic<plus<int64_t>, Value::Integer>(first, second); break;
-                    case Value::Floating:
-                        Arithmetic<plus<float>, Value::Floating>(first, second); break; 
-                    case Value::String:
-                        {
-                            std::string s;
-                            err = ValueToString(second, s);
-                            
-                            if(!err.succeeded)
-                                break;
-                            
-                            const uint64_t l = strlen(first.value.string);
-                            first.value.string = (char *)realloc(first.value.string, l+s.size()+1);
-                            memcpy(first.value.string+l, s.c_str(), s.size()+1);
-                        }
+                if(first.type==Value::String){
+                    std::string s;
+                    err = ValueToString(second, s);
+
+                    if(err.succeeded){
+                        const uint64_t l = strlen(first.value.string);
+                        first.value.string = (char *)realloc(first.value.string, l+s.size()+1);
+                        memcpy(first.value.string+l, s.c_str(), s.size()+1);
+                    }
+                }
+                else{
+                    CastingTypedArithmetic<plus>(first, second, "addition", "add");
                 }
             }
             else if(w=='-'){
-                
-                switch(first.type){
-                    case Value::Null:
-                        err.succeeded = false;
-                        err.error = "Invalid Null expression in subtraction";
-                        break;
-                    case Value::Boolean:
-                        err.succeeded = false;
-                        err.error = "Cannot subtract boolean expressions";
-                        break;
-                    case Value::Integer:
-                        Arithmetic<minus<int64_t>, Value::Integer>(first, second); break;
-                    case Value::Floating:
-                        Arithmetic<minus<float>, Value::Floating>(first, second); break; 
-                    case Value::String:
-                        err.succeeded = false;
-                        err.error = "Cannot subtract string expressions";
-                        break;
-                }
+                CastingTypedArithmetic<plus>(first, second, "subtraction", "subtract");
             }
 
             if(second.type==Value::String) free(second.value.string);
