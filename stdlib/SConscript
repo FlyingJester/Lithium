@@ -3,6 +3,8 @@ import sys
 
 lithium_environment = Environment(ENV = os.environ)
 
+chrono_src = ""
+
 if os.getenv('CXX', 'none') != 'none':
     print "using CXX ", os.environ.get('CXX')
     lithium_environment.Replace(CXX = os.environ.get('CXX'))
@@ -17,8 +19,11 @@ if os.getenv('LINK', 'none') != 'none':
 
 if sys.platform.startswith("win"):
     lithium_environment.Append(
-        CCFLAGS = " /Za /O2 /WX /W4 ",
-        CXXFLAGS = " /EHsc /wd4127 ",
+        CCFLAGS = " /O2 /W4 ")
+    chrono_lib = StaticLibrary(["chrono_win32.c"])
+    lithium_environment.Append(
+        CXXFLAGS = " /Za /EHsc ",
+        LIBS = [chrono_lib],
         CPPPATH = ["../"])
 else:
     lithium_environment.Append(
@@ -26,8 +31,9 @@ else:
         CFLAGS = " -Wextra -ansi -O3 ", 
         CXXFLAGS = " -Wunused-parameter -fno-exceptions -fno-rtti -std=c++98 -O2 ",
         CPPPATH = ["../"])
+    chrono_src = "chrono_unix.c"
 
-lithium_std = lithium_environment.StaticLibrary("lithium_std", ["lithium_std.cpp", "lithium_math.cpp", "lithium_chrono.cpp"])
+lithium_std = lithium_environment.StaticLibrary("lithium_std", ["lithium_std.cpp", "lithium_math.cpp", "lithium_chrono.cpp", chrono_src])
 
 Install("../", "lithium_std.hpp")
 

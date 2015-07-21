@@ -408,7 +408,7 @@ public:
         while(i!=end && !IsWhitespace(*i) && !IsSyntax(*i)) i++;
         return std::string(start, i);
     }
-
+    
     template<typename T, Value::Type To>
     bool Arithmetic(struct Value &first, const struct Value &second){
         T t;
@@ -419,7 +419,7 @@ public:
                 err.error = std::string("Cannot perform arithmetic: ") + err.error;
                 return false;
             }
-            first.value.integer = (int64_t)t((int64_t)first.value.integer, (int64_t)n);
+            first.value.integer = t(first.value.integer, (int64_t)n);
         }
         else if(To==Value::Floating){
             float n;
@@ -428,7 +428,7 @@ public:
                 err.error = std::string("Cannot perform arithmetic: ") + err.error;
                 return false;
             }
-            first.value.floating = (float)t((float)first.value.floating, n);
+            first.value.floating = t(first.value.floating, n);
         }
         else{
             err.succeeded = false;

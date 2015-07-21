@@ -1,4 +1,3 @@
-
 import os
 import sys
 
@@ -18,7 +17,9 @@ if os.getenv('LINK', 'none') != 'none':
 
 if sys.platform.startswith("win"):
     lithium_environment.Append(
-        CCFLAGS = " /Za /O2 /W4 ",
+        CCFLAGS = " /O2 /W4 ")
+    lithium_environment.Append(
+        CCFLAGS = " /Za ",
         CXXFLAGS = " /EHsc ",
         CPPPATH = ["../"])
 else:
