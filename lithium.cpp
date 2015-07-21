@@ -227,8 +227,8 @@ void StringToValue(struct Value &v, const std::string &in){
     const uint64_t len = in.size();
     
     v.type = Value::String;
-    v.value.string = (char *)malloc(len+1);
-    memcpy(v.value.string, in.c_str(), len+1);
+    v.value.string = (char *)malloc((size_t)len+1);
+    memcpy(v.value.string, in.c_str(), (size_t)len+1);
 }
 
 void BooleanToValue(struct Value &v, bool in){
@@ -411,7 +411,7 @@ public:
                 err.error = std::string("Cannot perform arithmetic: ") + err.error;
                 return false;
             }
-            first.value.integer = t(first.value.integer, n);
+            first.value.integer = (int64_t)t(first.value.integer, n);
         }
         else if(To==Value::Floating){
             float n;
@@ -420,7 +420,7 @@ public:
                 err.error = std::string("Cannot perform arithmetic: ") + err.error;
                 return false;
             }
-            first.value.floating = t(first.value.floating, n);
+            first.value.floating = (float)t(first.value.floating, n);
         }
         else{
             err.succeeded = false;
