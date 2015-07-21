@@ -764,7 +764,7 @@ public:
                 }
             }
             else if(w=='-'){
-                CastingTypedArithmetic<plus>(first, second, "subtraction", "subtract");
+                CastingTypedArithmetic<minus>(first, second, "subtraction", "subtract");
             }
 
             if(second.type==Value::String) free(second.value.string);
