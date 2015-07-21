@@ -82,6 +82,8 @@ Property::Property(){ name = "<INVALID>"; }
 
 template<typename T>
 struct name_finder{
+    name_finder(const std::string &s_)
+      : s(s_){}
     const std::string &s;
     bool operator() (const T &that){
         return that.name==s;
@@ -250,7 +252,7 @@ Context::~Context(){
 }
 
 struct Error Context::AddModule(const std::string &name, Context *ctx){
-    struct name_finder<struct Module> finder = {name};
+    struct name_finder<struct Module> finder(name);
     if(std::find_if(modules.cbegin(), modules.cend(), finder)!=modules.cend()){
         const struct Error e = {false, std::string("Module ") + name + " already exists"};
         return e;
@@ -264,7 +266,7 @@ struct Error Context::AddModule(const std::string &name, Context *ctx){
 }
 
 struct Error Context::SetModule(const std::string &name, Context *ctx){
-    struct name_finder<struct Module> finder = {name};
+    struct name_finder<struct Module> finder(name);
     std::vector<struct Module>::iterator i = 
         std::find_if(modules.begin(), modules.end(), finder);
     if(i==modules.end()){
@@ -279,7 +281,8 @@ struct Error Context::SetModule(const std::string &name, Context *ctx){
 }
 
 Context *Context::GetModule(const std::string &name){
-    struct name_finder<struct Module> finder = {name};
+    struct name_finder<struct Module> finder(name);
+    
     std::vector<struct Module>::const_iterator i = 
         std::find_if(modules.cbegin(), modules.cend(), finder);
 
@@ -288,8 +291,8 @@ Context *Context::GetModule(const std::string &name){
 }
         
 struct Error Context::AddAccessor(const std::string &name, Accessor a){
-    struct name_finder<Property> finder = {name};
-
+    struct name_finder<Property> finder(name);
+    
     if(std::find_if(accessors.cbegin(), accessors.cend(), finder)!=accessors.cend()){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
         return e;
@@ -303,7 +306,7 @@ struct Error Context::AddAccessor(const std::string &name, Accessor a){
 
 Accessor Context::GetAccessor(const std::string &name){
 
-    struct name_finder<Property> finder = {name};
+    struct name_finder<Property> finder(name);
     std::vector<Property>::const_iterator i = 
         std::find_if(accessors.cbegin(), accessors.cend(), finder);
 
@@ -312,7 +315,7 @@ Accessor Context::GetAccessor(const std::string &name){
 }
 
 struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
-    struct name_finder<Variable> finder = {name};
+    struct name_finder<Variable> finder(name);
     if(std::find_if(variables.cbegin(), variables.cend(), finder)!=variables.cend()){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
@@ -325,7 +328,7 @@ struct Error Context::AddVariable(const std::string &name, struct Value &v, unsi
 }
 
 struct Value Context::GetVariable(const std::string &name){
-    struct name_finder<Variable> finder = {name};
+    struct name_finder<Variable> finder(name);
     std::vector<Variable>::const_iterator i = 
         std::find_if(variables.cbegin(), variables.cend(), finder);
     if(i==variables.cend()){
@@ -338,7 +341,7 @@ struct Value Context::GetVariable(const std::string &name){
 }
 
 struct Error Context::SetVariable(const std::string &name, const struct Value &v){
-    struct name_finder<Variable> finder = {name};
+    struct name_finder<Variable> finder(name);
     std::vector<Variable>::iterator i = 
         std::find_if(variables.begin(), variables.end(), finder);
     if(i==variables.end()){
