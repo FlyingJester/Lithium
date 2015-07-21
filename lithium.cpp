@@ -4,6 +4,16 @@
 #include <cstdlib>
 #include <cmath>
 
+#ifdef _MSC_VER
+
+#define SNPrintfShim sprintf_s
+
+#else
+
+#define SNPrintfShim snprintf
+
+#endif
+
 namespace Lithium{
 
 template<typename T>
@@ -59,8 +69,8 @@ void Variable::CopyValueString(){
     if(value.type!=Value::String) return;
     
     const uint64_t nl = strlen(value.value.string);
-    char * const c = (char *)malloc(nl+1);
-    memcpy(c, value.value.string, nl+1);
+    char * const c = (char *)malloc((size_t)nl+1);
+    memcpy(c, value.value.string, (size_t)nl+1);
     value.value.string = c;
 }
 
@@ -112,7 +122,7 @@ struct Error ValueToInteger(const struct Value &v, int64_t &out){
             out = v.value.integer;
             break;
         case Value::Floating:
-            out = v.value.floating;
+            out = (int64_t)v.value.floating;
             break;
         case Value::String:
             if(!StrToInt64(v.value.string, &out)){
@@ -137,7 +147,7 @@ struct Error ValueToFloating(const struct Value &v, float &out){
             e.error = "Cannot convert bool to float";
             break;
         case Value::Integer:
-            out = v.value.integer;
+            out = (float)v.value.integer;
             break;
         case Value::Floating:
             out = v.value.floating;
@@ -165,11 +175,11 @@ struct Error ValueToString(const struct Value &v, std::string &out){
             out.assign(v.value.boolean?"true":"false");
             break;
         case Value::Integer:
-            sprintf(buffer, "%i", (int)v.value.integer);
+            SNPrintfShim(buffer, 79, "%i", (int)v.value.integer);
             out.assign(buffer);
             break;
         case Value::Floating:
-            sprintf(buffer, "%d", (int)v.value.floating);
+            SNPrintfShim(buffer, 79, "%d", (int)v.value.floating);
             out.assign(buffer);
             break;
         case Value::String:
