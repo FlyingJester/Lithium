@@ -419,7 +419,7 @@ public:
                 err.error = std::string("Cannot perform arithmetic: ") + err.error;
                 return false;
             }
-            first.value.integer = (int64_t)t(first.value.integer, n);
+            first.value.integer = (int64_t)t((int64_t)first.value.integer, (int64_t)n);
         }
         else if(To==Value::Floating){
             float n;
@@ -428,7 +428,7 @@ public:
                 err.error = std::string("Cannot perform arithmetic: ") + err.error;
                 return false;
             }
-            first.value.floating = (float)t(first.value.floating, n);
+            first.value.floating = (float)t((float)first.value.floating, n);
         }
         else{
             err.succeeded = false;
@@ -773,7 +773,7 @@ public:
 
                     if(err.succeeded){
                         const uint64_t l = strlen(first.value.string);
-                        first.value.string = (char *)realloc(first.value.string, l+s.size()+1);
+                        first.value.string = (char *)realloc(first.value.string, (size_t)(l+s.size()+1));
                         memcpy(first.value.string+l, s.c_str(), s.size()+1);
                     }
                 }
