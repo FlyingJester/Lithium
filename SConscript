@@ -18,7 +18,7 @@ if os.getenv('LINK', 'none') != 'none':
 
 if sys.platform.startswith("win"):
     lithium_environment.Append(
-        CCFLAGS = " /Za /O2 /Wall ",
+        CCFLAGS = " /Za /O2 /W4X ",
         CXXFLAGS = " /EHsc ",
         CPPPATH = ["../"])
 else:
