@@ -88,6 +88,11 @@ struct name_finder{
     bool operator() (const T &that){
         return that.name==s;
     }
+    
+    struct name_finder &operator=(const name_finder &that){
+        return name_finder(that.s);
+    }
+    
 };
 
 Value::Type MutualCast(Value::Type a, Value::Type b){
