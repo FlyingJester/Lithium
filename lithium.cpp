@@ -303,7 +303,7 @@ Accessor Context::GetAccessor(const std::string &name){
 
 struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
     struct name_finder<Variable> finder = {name};
-        if(std::find_if(variables.cbegin(), variables.cend(), finder)!=variables.cend()){
+    if(std::find_if(variables.cbegin(), variables.cend(), finder)!=variables.cend()){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
     }
@@ -478,11 +478,24 @@ public:
         else if(value=="get"){
             const std::string ident = GetIdentifier(i, end);
             SkipWhitespace(i, end);
-            v = ctx->GetProperty(ident);
-            if(v.type==Value::Null){
-                err.succeeded = false;
-                err.error = "Undefined Property \"";
-                err.error += ident + '"';
+            
+            if(ident=="local"){
+                const std::string variable_name = GetIdentifier(i, end);
+                SkipWhitespace(i, end);
+                v = ctx->GetVariable(variable_name);
+                if(v.type==Value::Null){
+                    err.succeeded = false;
+                    err.error = "Undefined Variable \"";
+                    err.error += ident + '"';
+                }
+            }
+            else{
+                v = ctx->GetProperty(ident);
+                if(v.type==Value::Null){
+                    err.succeeded = false;
+                    err.error = "Undefined Property \"";
+                    err.error += ident + '"';
+                }
             }
         }
         else if(value=="from"){
@@ -838,9 +851,9 @@ public:
                     err = e;
                 }
                 else{
-                    err.succeeded = true;
-                    ctx->AddVariable(name, new_value, scope);
-                    printf("Created integer variable %s with value %i\n", name.c_str(), (int)new_value.value.integer);
+                    err = ctx->AddVariable(name, new_value, scope);
+                    if(err.succeeded)
+                        printf("Created integer variable %s with value %i\n", name.c_str(), (int)new_value.value.integer);
                     
                 }
             }
