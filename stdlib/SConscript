@@ -23,7 +23,6 @@ if sys.platform.startswith("win"):
     chrono_src = "chrono_win32.c"
     lithium_environment.Append(
         CXXFLAGS = " /Za /EHsc ",
-        LIBS = [chrono_lib],
         CPPPATH = ["../"])
 else:
     lithium_environment.Append(
