@@ -530,7 +530,7 @@ public:
                 if(v.type==Value::Null){
                     err.succeeded = false;
                     err.error = "Undefined Variable \"";
-                    err.error += ident + '"';
+                    err.error += variable_name + '"';
                 }
             }
             else{
