@@ -395,7 +395,7 @@ public:
     }
     
     static bool IsSyntax(char c){
-        return (c>=35 && c<=47 && c!=46) || (c>=91 && c<=96) || (c>=123 && c<=126);
+        return (c>=35 && c<=47 && c!=46) || (c>=91 && c<=96) || (c>=123 && c<=126) || (c>=58 && c<=64);
     }
     
     static void SkipWhitespace(std::string::const_iterator &i, const std::string::const_iterator end){
@@ -508,8 +508,21 @@ public:
             memcpy(v.value.string, value.c_str()+1, value.size()-2);
             v.value.string[value.size()-1] = 0;
         }
-        else if(value[0]=='('){
+        else if(value[0]=='(' && value.size()==1){
             
+            v = Expression(ctx, i, end);
+            
+            SkipWhitespace(i, end);
+            
+            if(i!=end && (*i)!=')'){
+                err.succeeded = false;
+                err.error = "Expected ')'";
+                return v;
+            }
+            
+            i++;
+            SkipWhitespace(i, end);
+            return v;
         }
         else if(value=="true"){
             v.type = Value::Boolean;
@@ -634,9 +647,10 @@ public:
         ctx->variables.erase(i, ctx->variables.cend());
     }
     
-    static void SkipScope(std::string::const_iterator &i, const std::string::const_iterator end){
+    static void SkipScope1(std::string::const_iterator &i, const std::string::const_iterator end){
         unsigned l_scope = 0;
-        while(i!=end && (*i)!='.' && l_scope!=0){
+        
+        do{
             switch(*i){
                 case '"':
                     *i++;
@@ -648,8 +662,21 @@ public:
                 case '.': l_scope--; break;
             }
             i++;
+        }while(i!=end && l_scope!=0);
+    }
+    
+    static void SkipScope(std::string::const_iterator &i, const std::string::const_iterator end){
+        while(i!=end && (*i)!='.'){
+            if((*i)=='"'){
+                i++;
+                while(i!=end && (*i)!='"')
+                    i++;
+                if(i==end) return;
+            }
+            
+            i++;
         }
-
+        
     }
     
     void Scope(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
@@ -677,8 +704,12 @@ public:
     void If(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
         SkipWhitespace(i, end);
         
+        const std::string::const_iterator i_1 = i;
+        
         struct Value v = Expression(ctx, i, end);
-                
+        
+        const std::string conditional(i_1, i);
+        
         if(!err.succeeded) return;
         
         bool c;
@@ -692,7 +723,8 @@ public:
             SkipWhitespace(i, end);
             if(*i!=':'){
                 err.succeeded = false;
-                err.error = "Expected ':'";
+                err.error = "Expected ':' after ";
+                err.error += conditional;
                 return;
             }
             
@@ -709,6 +741,16 @@ public:
                     err.error = "Unexpected end of input before end of scope";
                     return;
                 }
+                if((*i)!='.'){
+                    err.succeeded = false;
+                    err.error = "Expected '.' at '";
+                    err.error += *i;
+                    err.error += '\'';
+                    return;
+                }
+                
+                /* Move off the '.' */
+                i++;
             }
         }
     }
@@ -725,7 +767,8 @@ public:
         
         if((*i)!=':'){
             err.succeeded = false;
-            err.error = "Expected ':'";
+            err.error = "Expected ':' after ";
+            err.error += conditional;
             return;
         }
         
