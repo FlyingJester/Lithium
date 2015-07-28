@@ -116,6 +116,7 @@ Value::Type MutualCast(Value::Type a, Value::Type b){
                 return Value::Floating;
         case Value::String: return Value::String;
     }
+    return Value::Null;
 }
 
 /* Numeric types are directly converted. Strings may convert -- see strtoll. Booleans fail. */
@@ -307,7 +308,7 @@ struct Error Context::AddAccessor(const std::string &name, Accessor a){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
         return e;
     }
-    else{
+    /* else */ {
         accessors.push_back(Property(name, a));
         const struct Error e = {true};
         return e;
@@ -330,7 +331,7 @@ struct Error Context::AddVariable(const std::string &name, struct Value &v, unsi
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
     }
-    else{
+    /* else */ {
         variables.push_back(Variable(name, v, n));
         const struct Error e = {true};
         return e;
@@ -647,9 +648,9 @@ public:
     
     void CleanScope(Context *ctx){
         /* Clean up the stack. */
-        std::vector<Variable>::const_iterator i = ctx->variables.begin();
+        std::vector<Variable>::iterator i = ctx->variables.begin();
         while(i!=ctx->variables.end() && i->scope<scope) i++;
-        ctx->variables.erase(i.base(), ctx->variables.end());
+        ctx->variables.erase(i, ctx->variables.end());
     }
     
     static void SkipScope1(std::string::const_iterator &i, const std::string::const_iterator end){
