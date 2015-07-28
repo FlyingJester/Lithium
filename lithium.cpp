@@ -4,13 +4,17 @@
 #include <cstdlib>
 #include <cmath>
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 
 #define SNPrintfShim sprintf_s
 
-#else
+#elif defined(__APPLE__)
 
 #define SNPrintfShim snprintf
+
+#else
+
+#define SNPrintfShim(A, B, C) sprintf(A, C);
 
 #endif
 
