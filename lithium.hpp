@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <cstring>
-#include <cstdint>
+#include <stdint.h>
 #include <vector>
 
 namespace Lithium{
@@ -78,6 +78,14 @@ namespace Lithium{
         Context();
         
         struct Module { std::string name; Context *ctx; };
+        
+        struct Label {std::string name; uint64_t offset; };
+        
+        std::vector<uint8_t> bytecode;
+        std::vector<struct Label> jump_table;
+        std::vector<struct Label> procedure_table;
+        std::vector<std::string> string;
+        
         
         std::vector<Variable> variables;
         std::vector<Property> accessors;
