@@ -13,6 +13,7 @@
 #define SNPrintfShim snprintf
 
 #else
+#include <cstdio>
 
 #define SNPrintfShim(STR, A, B, C) sprintf(STR, A, C);
 
