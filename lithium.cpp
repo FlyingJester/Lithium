@@ -471,6 +471,10 @@ public:
         return true;
     }
     
+    static bool NotIsDecDigit(char c){
+        return !IsDecDigit(c);
+    }
+    
     struct Value Factor(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
         
         SkipWhitespace(i, end);
@@ -479,7 +483,7 @@ public:
         struct Value v = {Value::Null};
         
         /* If all of value is decimal digits and *i is a '.', then we should append the next identifier */
-        if((*i)=='.' && std::find_if_not(value.begin(), value.end(), IsDecDigit)==value.end() && !IsWhitespace(*(i+1))){
+        if((*i)=='.' && std::find_if(value.begin(), value.end(), NotIsDecDigit)==value.end() && !IsWhitespace(*(i+1))){
             value += '.';
             i++;
             value+=GetIdentifier(i, end);
