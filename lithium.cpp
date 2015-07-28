@@ -296,14 +296,14 @@ Context *Context::GetModule(const std::string &name){
     std::vector<struct Module>::const_iterator i = 
         std::find_if(modules.begin(), modules.end(), finder);
 
-    if(i==modules.cend()) return NULL;
+    if(i==modules.end()) return NULL;
     return i->ctx;
 }
         
 struct Error Context::AddAccessor(const std::string &name, Accessor a){
     struct name_finder<Property> finder(name);
     
-    if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.cend()){
+    if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.end()){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
         return e;
     }
@@ -320,13 +320,13 @@ Accessor Context::GetAccessor(const std::string &name){
     std::vector<Property>::const_iterator i = 
         std::find_if(accessors.begin(), accessors.end(), finder);
 
-    if(i==accessors.cend()) return NULL;
+    if(i==accessors.end()) return NULL;
     return i->accessor;
 }
 
 struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
     struct name_finder<Variable> finder(name);
-    if(std::find_if(variables.begin(), variables.end(), finder)!=variables.cend()){
+    if(std::find_if(variables.begin(), variables.end(), finder)!=variables.end()){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
     }
@@ -649,7 +649,7 @@ public:
         /* Clean up the stack. */
         std::vector<Variable>::const_iterator i = ctx->variables.begin();
         while(i!=ctx->variables.end() && i->scope<scope) i++;
-        ctx->variables.erase(i, ctx->variables.end());
+        ctx->variables.erase(i.base(), ctx->variables.end());
     }
     
     static void SkipScope1(std::string::const_iterator &i, const std::string::const_iterator end){
