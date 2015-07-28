@@ -15,7 +15,7 @@
 #else
 #include <cstdio>
 
-#define SNPrintfShim(STR, A, B, C) sprintf(STR, A, C);
+#define SNPrintfShim(STRING, N, FORMAT, ARGS) sprintf(STRING, FORMAT, ARGS);
 
 #endif
 
