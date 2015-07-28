@@ -263,7 +263,7 @@ Context::~Context(){
 
 struct Error Context::AddModule(const std::string &name, Context *ctx){
     struct name_finder<struct Module> finder(name);
-    if(std::find_if(modules.cbegin(), modules.cend(), finder)!=modules.cend()){
+    if(std::find_if(modules.begin(), modules.end(), finder)!=modules.end()){
         const struct Error e = {false, std::string("Module ") + name + " already exists"};
         return e;
     }
@@ -294,7 +294,7 @@ Context *Context::GetModule(const std::string &name){
     struct name_finder<struct Module> finder(name);
     
     std::vector<struct Module>::const_iterator i = 
-        std::find_if(modules.cbegin(), modules.cend(), finder);
+        std::find_if(modules.begin(), modules.end(), finder);
 
     if(i==modules.cend()) return NULL;
     return i->ctx;
@@ -303,7 +303,7 @@ Context *Context::GetModule(const std::string &name){
 struct Error Context::AddAccessor(const std::string &name, Accessor a){
     struct name_finder<Property> finder(name);
     
-    if(std::find_if(accessors.cbegin(), accessors.cend(), finder)!=accessors.cend()){
+    if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.cend()){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
         return e;
     }
@@ -318,7 +318,7 @@ Accessor Context::GetAccessor(const std::string &name){
 
     struct name_finder<Property> finder(name);
     std::vector<Property>::const_iterator i = 
-        std::find_if(accessors.cbegin(), accessors.cend(), finder);
+        std::find_if(accessors.begin(), accessors.end(), finder);
 
     if(i==accessors.cend()) return NULL;
     return i->accessor;
@@ -326,7 +326,7 @@ Accessor Context::GetAccessor(const std::string &name){
 
 struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
     struct name_finder<Variable> finder(name);
-    if(std::find_if(variables.cbegin(), variables.cend(), finder)!=variables.cend()){
+    if(std::find_if(variables.begin(), variables.end(), finder)!=variables.cend()){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
     }
@@ -340,8 +340,8 @@ struct Error Context::AddVariable(const std::string &name, struct Value &v, unsi
 struct Value Context::GetVariable(const std::string &name){
     struct name_finder<Variable> finder(name);
     std::vector<Variable>::const_iterator i = 
-        std::find_if(variables.cbegin(), variables.cend(), finder);
-    if(i==variables.cend()){
+        std::find_if(variables.begin(), variables.end(), finder);
+    if(i==variables.end()){
         struct Value v = {Value::Null};
         return v;
     }
@@ -478,7 +478,7 @@ public:
         struct Value v = {Value::Null};
         
         /* If all of value is decimal digits and *i is a '.', then we should append the next identifier */
-        if((*i)=='.' && std::find_if_not(value.cbegin(), value.cend(), IsDecDigit)==value.cend() && !IsWhitespace(*(i+1))){
+        if((*i)=='.' && std::find_if_not(value.begin(), value.end(), IsDecDigit)==value.end() && !IsWhitespace(*(i+1))){
             value += '.';
             i++;
             value+=GetIdentifier(i, end);
@@ -490,7 +490,7 @@ public:
         err.succeeded = true;
         
         if(IsDecDigit(value[0])){
-            if(find(value.cbegin(), value.cend(), '.')!=value.cend()){
+            if(find(value.begin(), value.end(), '.')!=value.end()){
                 v.type = Value::Floating;
                 if(!StrToFloat(value.c_str(), &v.value.floating)){
                     err.succeeded = false;
@@ -647,9 +647,9 @@ public:
     
     void CleanScope(Context *ctx){
         /* Clean up the stack. */
-        std::vector<Variable>::const_iterator i = ctx->variables.cbegin();
-        while(i!=ctx->variables.cend() && i->scope<scope) i++;
-        ctx->variables.erase(i, ctx->variables.cend());
+        std::vector<Variable>::const_iterator i = ctx->variables.begin();
+        while(i!=ctx->variables.end() && i->scope<scope) i++;
+        ctx->variables.erase(i, ctx->variables.end());
     }
     
     static void SkipScope1(std::string::const_iterator &i, const std::string::const_iterator end){
@@ -966,8 +966,8 @@ public:
 
 struct Error Context::Execute(const std::string &s){
     
-    std::string::const_iterator i = s.cbegin();
-    const std::string::const_iterator end = s.cend();
+    std::string::const_iterator i = s.begin();
+    const std::string::const_iterator end = s.end();
     
     Parse parser;
     
