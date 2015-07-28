@@ -14,7 +14,7 @@
 
 #else
 
-#define SNPrintfShim(A, B, C) sprintf(A, C);
+#define SNPrintfShim(STR, A, B, C) sprintf(STR, A, C);
 
 #endif
 
