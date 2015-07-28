@@ -116,6 +116,7 @@ Value::Type MutualCast(Value::Type a, Value::Type b){
                 return Value::Floating;
         case Value::String: return Value::String;
     }
+    return Value::Null;
 }
 
 /* Numeric types are directly converted. Strings may convert -- see strtoll. Booleans fail. */
@@ -296,18 +297,18 @@ Context *Context::GetModule(const std::string &name){
     std::vector<struct Module>::const_iterator i = 
         std::find_if(modules.begin(), modules.end(), finder);
 
-    if(i==modules.cend()) return NULL;
+    if(i==modules.end()) return NULL;
     return i->ctx;
 }
         
 struct Error Context::AddAccessor(const std::string &name, Accessor a){
     struct name_finder<Property> finder(name);
     
-    if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.cend()){
+    if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.end()){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
         return e;
     }
-    else{
+    /* else */ {
         accessors.push_back(Property(name, a));
         const struct Error e = {true};
         return e;
@@ -320,17 +321,17 @@ Accessor Context::GetAccessor(const std::string &name){
     std::vector<Property>::const_iterator i = 
         std::find_if(accessors.begin(), accessors.end(), finder);
 
-    if(i==accessors.cend()) return NULL;
+    if(i==accessors.end()) return NULL;
     return i->accessor;
 }
 
 struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
     struct name_finder<Variable> finder(name);
-    if(std::find_if(variables.begin(), variables.end(), finder)!=variables.cend()){
+    if(std::find_if(variables.begin(), variables.end(), finder)!=variables.end()){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
     }
-    else{
+    /* else */ {
         variables.push_back(Variable(name, v, n));
         const struct Error e = {true};
         return e;
@@ -470,6 +471,10 @@ public:
         return true;
     }
     
+    static bool NotIsDecDigit(char c){
+        return !IsDecDigit(c);
+    }
+    
     struct Value Factor(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
         
         SkipWhitespace(i, end);
@@ -478,7 +483,7 @@ public:
         struct Value v = {Value::Null};
         
         /* If all of value is decimal digits and *i is a '.', then we should append the next identifier */
-        if((*i)=='.' && std::find_if_not(value.begin(), value.end(), IsDecDigit)==value.end() && !IsWhitespace(*(i+1))){
+        if((*i)=='.' && std::find_if(value.begin(), value.end(), NotIsDecDigit)==value.end() && !IsWhitespace(*(i+1))){
             value += '.';
             i++;
             value+=GetIdentifier(i, end);
@@ -647,7 +652,7 @@ public:
     
     void CleanScope(Context *ctx){
         /* Clean up the stack. */
-        std::vector<Variable>::const_iterator i = ctx->variables.begin();
+        std::vector<Variable>::iterator i = ctx->variables.begin();
         while(i!=ctx->variables.end() && i->scope<scope) i++;
         ctx->variables.erase(i, ctx->variables.end());
     }
