@@ -36,6 +36,6 @@ else:
         CFLAGS = " -Wextra -ansi -O3 ", 
         CXXFLAGS = " -Wunused-parameter -fno-exceptions -fno-rtti -std=c++98 -O2 ")
 
-lithium = lithium_environment.StaticLibrary("lithium", ["lithium.cpp", "strtoll.c"])
+lithium = lithium_environment.StaticLibrary("lithium", ["lithium.cpp", "type_utils.cpp", "strtoll.c"])
 
 Return("lithium")

@@ -1,23 +1,9 @@
 #include "lithium.hpp"
+#include "bytecode_utils.hpp"
 #include "strtoll.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
-
-#if defined(_MSC_VER)
-
-#define SNPrintfShim sprintf_s
-
-#elif defined(__APPLE__)
-
-#define SNPrintfShim snprintf
-
-#else
-#include <cstdio>
-
-#define SNPrintfShim(STRING, N, FORMAT, ARGS) sprintf(STRING, FORMAT, ARGS);
-
-#endif
 
 namespace Lithium{
 
@@ -83,170 +69,8 @@ Variable::~Variable(){
     if(value.type==Value::String) free(value.value.string);
 }   
 
-Property::Property(){ name = "<INVALID>"; }
-
-template<typename T>
-struct name_finder{
-    name_finder(const std::string &s_)
-      : s(s_){}
-    const std::string &s;
-    bool operator() (const T &that){
-        return that.name==s;
-    }
-    
-    struct name_finder &operator=(const name_finder &that){
-        return name_finder(that.s);
-    }
-    
-};
-
-Value::Type MutualCast(Value::Type a, Value::Type b){
-    Value::Type mx = std::max(a, b), mn = std::min(a, b);
-    
-    if(mn==Value::Null) return Value::Null;
-    
-    switch(mx){
-        case Value::Null: return Value::Null;
-        case Value::Boolean: return Value::Boolean;
-        case Value::Integer: return mn;
-        case Value::Floating:
-            if(mn==Value::Boolean)
-                return Value::Boolean; 
-            else 
-                return Value::Floating;
-        case Value::String: return Value::String;
-    }
-    return Value::Null;
-}
-
-/* Numeric types are directly converted. Strings may convert -- see strtoll. Booleans fail. */
-struct Error ValueToInteger(const struct Value &v, int64_t &out){
-    struct Error e = {true};
-    switch(v.type){
-        case Value::Null:
-            e.succeeded = false;
-            e.error = "Cannot convert null to int";
-            break;
-        case Value::Boolean:
-            e.succeeded = false;
-            e.error = "Cannot convert bool to int";
-            break;
-        case Value::Integer:
-            out = v.value.integer;
-            break;
-        case Value::Floating:
-            out = (int64_t)v.value.floating;
-            break;
-        case Value::String:
-            if(!StrToInt64(v.value.string, &out)){
-                e.succeeded = false;
-                e.error = std::string("Cannot convert string ``") + v.value.string + "'' to int";
-            }
-            break;
-    }
-    return e;
-}
-
-/* Numeric types are directly converted. Strings may convert -- see strtoll. Booleans fail. */
-struct Error ValueToFloating(const struct Value &v, float &out){
-    struct Error e = {true};
-    switch(v.type){
-        case Value::Null:
-            e.succeeded = false;
-            e.error = "Cannot convert null to float";
-            break;
-        case Value::Boolean:
-            e.succeeded = false;
-            e.error = "Cannot convert bool to float";
-            break;
-        case Value::Integer:
-            out = (float)v.value.integer;
-            break;
-        case Value::Floating:
-            out = v.value.floating;
-            break;
-        case Value::String:
-            if(!StrToFloat(v.value.string, &out)){
-                e.succeeded = false;
-                e.error = std::string("Cannot convert string ``") + v.value.string + "'' to float";
-            }
-            break;
-    }
-    return e;
-}
-
-/* Anything can be a string... */
-struct Error ValueToString(const struct Value &v, std::string &out){
-    char buffer[80];
-    struct Error e = {true};
-    switch(v.type){
-        case Value::Null:
-            e.succeeded = false;
-            e.error = "Cannot convert null to float";
-            break;
-        case Value::Boolean:
-            out.assign(v.value.boolean?"true":"false");
-            break;
-        case Value::Integer:
-            SNPrintfShim(buffer, 79, "%i", (int)v.value.integer);
-            out.assign(buffer);
-            break;
-        case Value::Floating:
-            SNPrintfShim(buffer, 79, "%d", (int)v.value.floating);
-            out.assign(buffer);
-            break;
-        case Value::String:
-            out.assign(v.value.string);
-            break;
-    }
-    return e;
-}
-
-/* Anything can be a boolean... */
-struct Error ValueToBoolean(const struct Value &v, bool &out){
-    struct Error e = {true};
-    switch(v.type){
-        case Value::Null:
-            e.succeeded = false;
-            e.error = "Cannot convert null to float";
-            break;
-        case Value::Boolean:
-            out = v.value.boolean;
-            break;
-        case Value::Integer:
-            out = v.value.integer>0;
-            break;
-        case Value::Floating:
-            out = v.value.floating>0.0f;
-            break;
-        case Value::String:
-            out = (v.value.string!=NULL) && (v.value.string[0]!='\0');
-            break;
-    }
-    return e;
-}
-
-void IntegerToValue(struct Value &v, int64_t in){
-    v.type = Value::Integer;
-    v.value.integer = in;
-}
-
-void FloatingToValue(struct Value &v, float in){
-    v.type = Value::Floating;
-    v.value.floating = in;
-}
-
-void StringToValue(struct Value &v, const std::string &in){
-    const uint64_t len = in.size();
-    
-    v.type = Value::String;
-    v.value.string = (char *)malloc((size_t)len+1);
-    memcpy(v.value.string, in.c_str(), (size_t)len+1);
-}
-
-void BooleanToValue(struct Value &v, bool in){
-    v.type = Value::Boolean;
-    v.value.boolean = in;
+Property::Property(){
+    name = "<INVALID>";
 }
 
 Context::Context(){
@@ -263,7 +87,7 @@ Context::~Context(){
 }
 
 struct Error Context::AddModule(const std::string &name, Context *ctx){
-    struct name_finder<struct Module> finder(name);
+    struct Utils::name_finder<struct Module> finder(name);
     if(std::find_if(modules.begin(), modules.end(), finder)!=modules.end()){
         const struct Error e = {false, std::string("Module ") + name + " already exists"};
         return e;
@@ -277,7 +101,7 @@ struct Error Context::AddModule(const std::string &name, Context *ctx){
 }
 
 struct Error Context::SetModule(const std::string &name, Context *ctx){
-    struct name_finder<struct Module> finder(name);
+    struct Utils::name_finder<struct Module> finder(name);
     std::vector<struct Module>::iterator i = 
         std::find_if(modules.begin(), modules.end(), finder);
     if(i==modules.end()){
@@ -292,7 +116,7 @@ struct Error Context::SetModule(const std::string &name, Context *ctx){
 }
 
 Context *Context::GetModule(const std::string &name){
-    struct name_finder<struct Module> finder(name);
+    struct Utils::name_finder<struct Module> finder(name);
     
     std::vector<struct Module>::const_iterator i = 
         std::find_if(modules.begin(), modules.end(), finder);
@@ -302,7 +126,7 @@ Context *Context::GetModule(const std::string &name){
 }
         
 struct Error Context::AddAccessor(const std::string &name, Accessor a){
-    struct name_finder<Property> finder(name);
+    struct Utils::name_finder<Property> finder(name);
     
     if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.end()){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
@@ -317,7 +141,7 @@ struct Error Context::AddAccessor(const std::string &name, Accessor a){
 
 Accessor Context::GetAccessor(const std::string &name){
 
-    struct name_finder<Property> finder(name);
+    struct Utils::name_finder<Property> finder(name);
     std::vector<Property>::const_iterator i = 
         std::find_if(accessors.begin(), accessors.end(), finder);
 
@@ -326,7 +150,7 @@ Accessor Context::GetAccessor(const std::string &name){
 }
 
 struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
-    struct name_finder<Variable> finder(name);
+    struct Utils::name_finder<Variable> finder(name);
     if(std::find_if(variables.begin(), variables.end(), finder)!=variables.end()){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
@@ -339,7 +163,7 @@ struct Error Context::AddVariable(const std::string &name, struct Value &v, unsi
 }
 
 struct Value Context::GetVariable(const std::string &name){
-    struct name_finder<Variable> finder(name);
+    struct Utils::name_finder<Variable> finder(name);
     std::vector<Variable>::const_iterator i = 
         std::find_if(variables.begin(), variables.end(), finder);
     if(i==variables.end()){
@@ -352,7 +176,7 @@ struct Value Context::GetVariable(const std::string &name){
 }
 
 struct Error Context::SetVariable(const std::string &name, const struct Value &v){
-    struct name_finder<Variable> finder(name);
+    struct Utils::name_finder<Variable> finder(name);
     std::vector<Variable>::iterator i = 
         std::find_if(variables.begin(), variables.end(), finder);
     if(i==variables.end()){
@@ -390,12 +214,49 @@ struct Error Context::SetProperty(const std::string &name, const struct Value &v
     }
 }
 
+int32_t Context::VerifyString(const std::string &str){
+    int32_t i = 0;
+    while((i<string_table.size()) && (string_table[i] != str))
+        i++;
+
+    if(i==string_table.size())
+        string_table.push_back(str);
+    return i;
+}
+
+void Context::VerifyAndWriteStringIndex(const std::string &str){
+    Utils::AppendObject<int32_t>(VerifyString(str), token_code);
+}
+
 class Parse {
     unsigned scope; // This should never be needed outside the parse itself.
 public:
     
     struct Error err;
     
+    enum TokencodeOps{
+        NOP,
+        DECLARE,
+        INTEGER,
+        FLOATING,
+        BOOLEAN,
+        STRING,
+        SET,
+        GET,
+        SET_LOCAL,
+        GET_LOCAL,
+        IF,
+        END_IF,
+        LOOP,
+        END_LOOP,
+        ADD,
+        SUB,
+        MUL,
+        DIV,
+        REM,
+        NOP2
+    };
+
     static bool IsWhitespace(char c){
         return c==' ' || c=='\t' || c=='\n' || c=='\r';
     }
@@ -413,6 +274,113 @@ public:
         const std::string::const_iterator start = i;
         while(i!=end && !IsWhitespace(*i) && !IsSyntax(*i)) i++;
         return std::string(start, i);
+    }
+    
+    bool PreparseExpression(Context *ctx, std::string::const_iterator &i, const std::string::const_iterator end){
+
+start_expression:
+        {
+            const std::string expr = GetIdentifier(i, end);
+            if(IsDecDigit(expr[0])){ // Number of some sort
+                if(std::find(expr.begin(), expr.end(), '.')==expr.end()){ // Contains no decimal
+                    int64_t constant;
+                    if(!StrToInt64(expr.c_str(), &constant)){
+                        err.succeeded = false;
+                        err.error = "Invalid integer literal '";
+                        err.error+= expr + '\'';
+                        return false;
+                    }
+                    Utils::AppendObject<int64_t>(constant, ctx->token_code);
+                }
+                else{ // Contains a decimal
+                    float constant;
+                    if(!StrToFloat(expr.c_str(), &constant)){
+                        err.succeeded = false;
+                        err.error = "Invalid floating point literal '";
+                        err.error+= expr + '\'';
+                        return false;
+                    }
+                    
+                    Utils::AppendObject<float>(constant, ctx->token_code);
+                }
+            } // end if number
+            else if(expr=="get"){
+                SkipWhitespace(i, end);
+                const std::string prop = GetIdentifier(i, end);
+                
+                if(prop=="local"){
+                    ctx->AddTok(GET_LOCAL);
+                    SkipWhitespace(i, end);
+                    ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
+                }
+                else{
+                    ctx->AddTok(GET);
+                    ctx->VerifyAndWriteStringIndex(prop);
+                }
+                
+            }
+            else{
+                err.succeeded = false;
+                err.error = "Expected sub-expression (variable access, property access, literal)";
+                return false;
+            }
+            
+            SkipWhitespace(i, end);
+            
+            switch(*i){
+                case '+':
+                    ctx->AddTok(ADD);
+                    goto start_expression;
+                case '-':
+                    ctx->AddTok(SUB);
+                    goto start_expression;
+                case '*':
+                    ctx->AddTok(MUL);
+                    goto start_expression;
+                case '/':
+                    ctx->AddTok(DIV);
+                    goto start_expression;
+                case '%':
+                    ctx->AddTok(REM);
+                    goto start_expression;
+            }
+        } // label start_expression
+        return true;
+    }
+
+    bool Preparse(Context *ctx, const std::string &str){
+        
+        ctx->AddTok(NOP);
+        
+        const std::string::const_iterator end = str.end();
+        for(std::string::const_iterator i = str.begin(); i!=end; i++){
+
+            SkipWhitespace(i, end);
+            const std::string ident = GetIdentifier(i, end);
+            
+            if(ident=="int"){
+                ctx->AddTok(DECLARE);
+                ctx->AddTok(INTEGER);
+                ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
+                
+
+            }
+            else if(ident=="set"){
+                SkipWhitespace(i, end);
+                const std::string property = GetIdentifier(i, end);
+                if(property=="local"){
+                    SkipWhitespace(i, end);
+                    const std::string variable_name = GetIdentifier(i, end);
+                    ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
+                    
+                }
+                
+                
+            }
+            
+            
+        }
+        return true;
     }
     
     template<typename T, Value::Type To>
