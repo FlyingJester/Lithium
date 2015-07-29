@@ -1,7 +1,7 @@
 Lithium ICL Interpreter
 =======================
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/87b6c85b-4e7d-47a4-8323-884a14484f36/496208/badge.svg)](https://semaphoreci.com/flyingjester/lithium)
+[![Build Status](https://semaphoreci.com/api/v1/projects/87b6c85b-4e7d-47a4-8323-884a14484f36/496207/badge.svg)](https://semaphoreci.com/flyingjester/lithium)
 
 Copyright (C) 2015 Martin McDonough
 Version 0.01
