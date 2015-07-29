@@ -107,6 +107,9 @@ namespace Lithium{
         Context(void *obj);
         ~Context();
         
+        struct Error Preparse(const std::string &code);
+        void Disassemble(std::string &str);
+        
         struct Error AddModule(const std::string &name, Context *ctx);
 
         struct Error SetModule(const std::string &name, Context *ctx);

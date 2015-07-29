@@ -236,19 +236,19 @@ public:
     
     enum TokencodeOps{
         NOP,
-        DECLARE,
+        DECLARE, /* Appended by an 8-bit type token */
         INTEGER,
         FLOATING,
         BOOLEAN,
         STRING,
-        SET,
-        GET,
-        SET_LOCAL,
-        GET_LOCAL,
-        IF,
-        END_IF,
-        LOOP,
-        END_LOOP,
+        SET, /* Appended by a 32-bit string index */
+        GET, /* Appended by a 32-bit string index */
+        SET_LOCAL, /* Appended by a 32-bit string index */
+        GET_LOCAL, /* Appended by a 32-bit string index */
+        IF, /* Appended by a 32-bit jump index */
+        END_IF, /* Appended by a 32-bit jump index */
+        LOOP, /* Appended by a 32-bit jump index */
+        END_LOOP, /* Appended by a 32-bit jump index */
         ADD,
         SUB,
         MUL,
@@ -256,7 +256,78 @@ public:
         REM,
         NOP2
     };
+    
+    /* For disasm only */
+    static std::string GetStringFromIndex(const Context *ctx, std::vector<uint8_t>::const_iterator &i, const std::vector<uint8_t>::const_iterator end){
+        uint8_t accumulator[4];
+        
+        for(unsigned n = 0; n<4; n++){
+            if(i==end) return "<EOF>";
+            accumulator[n] = *i;
+            i++;
+        }
+        
+        uint64_t offset = 0;
+        uint32_t string_index = Utils::GetObject<uint32_t>(accumulator, offset);
+        
+        if(string_index<ctx->string_table.size())
+            return ctx->string_table[string_index];
 
+        return "<STRING OUT OF RANGE>";
+    }
+    
+    static void Disassemble(const Context *ctx, std::string &output){
+        const std::vector<uint8_t>::const_iterator end = ctx->token_code.end();
+        for(std::vector<uint8_t>::const_iterator i = ctx->token_code.begin(); i!=end; i++){
+            switch(*i){
+                case NOP:
+                    output+="\tNOP\n";
+                    break;
+                case DECLARE:
+                    output+="\tNEW ";
+                    i++;
+                    if(i==end) return;
+                    switch(*i){
+                        case INTEGER:
+                            output+="INTEGER\n";
+                            break;
+                        case FLOATING:
+                            output+="FLOATING\n";
+                            break;
+                        case STRING:
+                            output+="STRING\n";
+                            break;
+                        case BOOLEAN:
+                            output+="BOOLEAN\n";
+                            break;
+                        default:
+                            output+="<INVALID TYPE>";
+                    }
+                    break;
+                case SET:
+                    output+="\tSET PROPERTY ";
+                    output+=GetStringFromIndex(ctx, ++i, end);
+                    output+='\n';
+                    break;
+                case GET:
+                    output+="\tGET PROPERTY ";
+                    output+=GetStringFromIndex(ctx, ++i, end);
+                    output+='\n';
+                    break;
+                case SET_LOCAL:
+                    output+="\tSET VARIABLE ";
+                    output+=GetStringFromIndex(ctx, ++i, end);
+                    output+='\n';
+                    break;
+                case GET_LOCAL:
+                    output+="\tGET VARIABLE ";
+                    output+=GetStringFromIndex(ctx, ++i, end);
+                    output+='\n';
+                    break;
+            }
+        }
+    }
+    
     static bool IsWhitespace(char c){
         return c==' ' || c=='\t' || c=='\n' || c=='\r';
     }
@@ -350,6 +421,7 @@ start_expression:
 
     bool Preparse(Context *ctx, const std::string &str){
         
+        static uint32_t scope_level = 0;
         ctx->AddTok(NOP);
         
         const std::string::const_iterator end = str.end();
@@ -362,21 +434,58 @@ start_expression:
                 ctx->AddTok(DECLARE);
                 ctx->AddTok(INTEGER);
                 ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
-                
-
+                if(!PreparseExpression(ctx, i, end))
+                    return false;
+            }          
+            if(ident=="float"){
+                ctx->AddTok(DECLARE);
+                ctx->AddTok(FLOATING);
+                ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
+                if(!PreparseExpression(ctx, i, end))
+                    return false;
+            }          
+            if(ident=="string"){
+                ctx->AddTok(DECLARE);
+                ctx->AddTok(STRING);
+                ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
+                if(!PreparseExpression(ctx, i, end))
+                    return false;
             }
             else if(ident=="set"){
                 SkipWhitespace(i, end);
                 const std::string property = GetIdentifier(i, end);
                 if(property=="local"){
+                    ctx->AddTok(SET_LOCAL);
                     SkipWhitespace(i, end);
                     const std::string variable_name = GetIdentifier(i, end);
                     ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
-                    
                 }
-                
+                else{
+                    ctx->AddTok(SET);
+                    ctx->VerifyAndWriteStringIndex(GetIdentifier(i, end));
+                }
+                if(!PreparseExpression(ctx, i, end))
+                    return false;
+            }
+            else if(ident=="get"){
+            
+            
+            }
+            else if(ident=="if"){
                 
             }
+            else if(ident=="loop"){
+            
+            }
+            else{
+                err.succeeded = false;
+                err.error = "Expected statement at '";
+                err.error += ident + '\'';
+                return false;
+            }
+            
+            SkipWhitespace(i, end);
+            
             
             
         }
@@ -936,6 +1045,17 @@ start_expression:
     }
 
 };
+        
+struct Error Context::Preparse(const std::string &code){
+    Parse parser;
+    parser.Preparse(this, code);
+    return parser.err;
+}
+
+void Context::Disassemble(std::string &str){
+    Parse parser;
+    parser.Disassemble(this, str);
+}
 
 struct Error Context::Execute(const std::string &s){
     

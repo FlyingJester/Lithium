@@ -1,5 +1,7 @@
 #include "lithium.hpp"
 #include "strtoll.h"
+#include <cstdlib>
+#include <cstdio>
 
 #if defined(_MSC_VER)
 
