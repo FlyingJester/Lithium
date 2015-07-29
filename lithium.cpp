@@ -214,8 +214,8 @@ struct Error Context::SetProperty(const std::string &name, const struct Value &v
     }
 }
 
-int32_t Context::VerifyString(const std::string &str){
-    int32_t i = 0;
+uint32_t Context::VerifyString(const std::string &str){
+    uint32_t i = 0;
     while((i<string_table.size()) && (string_table[i] != str))
         i++;
 
@@ -836,8 +836,8 @@ start_expression:
                 }
                 else{
                     err = ctx->AddVariable(name, new_value, scope);
-                    if(err.succeeded)
-                        printf("Created integer variable %s with value %i\n", name.c_str(), (int)new_value.value.integer);
+//                    if(err.succeeded)
+//                        printf("Created integer variable %s with value %i\n", name.c_str(), (int)new_value.value.integer);
                     
                 }
             }
@@ -953,7 +953,7 @@ struct Error Context::Execute(const std::string &s){
     }
     
     if(!parser.err.succeeded){
-        puts(parser.err.error.c_str());
+//        puts(parser.err.error.c_str());
     }
     
     return parser.err;
