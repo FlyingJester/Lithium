@@ -248,100 +248,47 @@ class Parse {
 public:
     
     struct Error err;
-    
-    enum TokencodeOps{
-        NOP,
-        DECLARE, /* Appended by an 8-bit type token */
-        INTEGER,
-        FLOATING,
-        BOOLEAN,
-        STRING,
-        SET, /* Appended by a 32-bit string index */
-        GET, /* Appended by a 32-bit string index */
-        SET_LOCAL, /* Appended by a 32-bit string index */
-        GET_LOCAL, /* Appended by a 32-bit string index */
-        IF, /* Appended by a 32-bit jump index */
-        END_IF, /* Appended by a 32-bit jump index */
-        LOOP, /* Appended by a 32-bit jump index */
-        END_LOOP, /* Appended by a 32-bit jump index */
-        ADD,
-        SUB,
-        MUL,
-        DIV,
-        REM,
-        NOP2
-    };
-    
-    /* For disasm only */
-    static std::string GetStringFromIndex(const Context *ctx, std::vector<uint8_t>::const_iterator &i, const std::vector<uint8_t>::const_iterator end){
-        uint8_t accumulator[4];
-        
-        for(unsigned n = 0; n<4; n++){
-            if(i==end) return "<EOF>";
-            accumulator[n] = *i;
-            i++;
-        }
-        
-        uint64_t offset = 0;
-        uint32_t string_index = Utils::GetObject<uint32_t>(accumulator, offset);
-        
-        if(string_index<ctx->string_table.size())
-            return ctx->string_table[string_index];
 
-        return "<STRING OUT OF RANGE>";
-    }
-    
-    static void Disassemble(const Context *ctx, std::string &output){
-        const std::vector<uint8_t>::const_iterator end = ctx->token_code.end();
-        for(std::vector<uint8_t>::const_iterator i = ctx->token_code.begin(); i!=end; i++){
-            switch(*i){
-                case NOP:
-                    output+="\tNOP\n";
-                    break;
-                case DECLARE:
-                    output+="\tNEW ";
-                    i++;
-                    if(i==end) return;
-                    switch(*i){
-                        case INTEGER:
-                            output+="INTEGER\n";
-                            break;
-                        case FLOATING:
-                            output+="FLOATING\n";
-                            break;
-                        case STRING:
-                            output+="STRING\n";
-                            break;
-                        case BOOLEAN:
-                            output+="BOOLEAN\n";
-                            break;
-                        default:
-                            output+="<INVALID TYPE>";
-                    }
-                    break;
-                case SET:
-                    output+="\tSET PROPERTY ";
-                    output+=GetStringFromIndex(ctx, ++i, end);
-                    output+='\n';
-                    break;
-                case GET:
-                    output+="\tGET PROPERTY ";
-                    output+=GetStringFromIndex(ctx, ++i, end);
-                    output+='\n';
-                    break;
-                case SET_LOCAL:
-                    output+="\tSET VARIABLE ";
-                    output+=GetStringFromIndex(ctx, ++i, end);
-                    output+='\n';
-                    break;
-                case GET_LOCAL:
-                    output+="\tGET VARIABLE ";
-                    output+=GetStringFromIndex(ctx, ++i, end);
-                    output+='\n';
-                    break;
-            }
-        }
-    }
+    enum TokenCode {
+        NOP,
+        
+        /* Arithmetic and Unary Operators */
+        PLUS,
+        MINUS,
+        MULTIPLY,
+        DIVIDE,
+        REMAINDER,
+        
+        /* Access -- each is followed by a 64-bit string-table offset for the name (x) */
+        
+        GET_PROPERTY, // get x
+        SET_PROPERTY, // set x
+        GET_VARIABLE, // get local x
+        SET_VARIABLE, // set local x
+        
+        /* Module Access -- each followed by a 64-bit string-table offset for the module name (x)
+         * and then a second for the property name (y) */
+        
+        TO_MODULE,    // to x y
+        FROM_MODULE,  // from x y
+        
+        /* Labels -- each followed by a 64-bit jump-table offset corresponding to the
+         * matching ending label (x) (for starting labels) or starting label (y) (for end labels). */
+        START_IF_LABEL, // if {...} : (x)
+        END_IF_LABEL, // . (y)
+        START_LOOP_LABEL, // loop {...} : (x)
+        END_LOOP_LABEL, // . (y)
+        
+        /* Declarations -- each followed by a 64-bit string-table offset for the name (x) */
+        DECLARE_INT, // int x
+        DECLARE_FLOAT, // float x
+        DECLARE_BOOL, // bool x
+        DECLARE_STRING, // string x
+        
+        /* TERMINATOR */
+        NOP2
+        
+    };
     
     static bool IsWhitespace(char c){
         return c==' ' || c=='\t' || c=='\n' || c=='\r';
