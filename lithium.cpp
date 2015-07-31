@@ -276,6 +276,21 @@ struct Error Context::AddModule(const std::string &name, Context *ctx){
     }
 }
 
+struct Error Context::RemoveModule(const std::string &name){
+    struct name_finder<struct Module> finder(name);
+    std::vector<struct Module>::iterator i = 
+        std::find_if(modules.begin(), modules.end(), finder);
+    if(i==modules.end()){
+        struct Error e = {false, std::string("Module ") + name + " does not exist"};
+        return e;
+    }
+    else{
+        struct Error e = {true};
+        modules.erase(i);
+        return e;
+    }
+}
+
 struct Error Context::SetModule(const std::string &name, Context *ctx){
     struct name_finder<struct Module> finder(name);
     std::vector<struct Module>::iterator i = 
