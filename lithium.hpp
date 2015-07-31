@@ -111,6 +111,7 @@ namespace Lithium{
         void Disassemble(std::string &str);
         
         struct Error AddModule(const std::string &name, Context *ctx);
+        struct Error RemoveModule(const std::string &name);
 
         struct Error SetModule(const std::string &name, Context *ctx);
         Context *GetModule(const std::string &name);
