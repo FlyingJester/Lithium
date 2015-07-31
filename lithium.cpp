@@ -101,7 +101,7 @@ struct Error Context::AddModule(const std::string &name, Context *ctx){
 }
 
 struct Error Context::RemoveModule(const std::string &name){
-    struct name_finder<struct Module> finder(name);
+    struct Utils::name_finder<struct Module> finder(name);
     std::vector<struct Module>::iterator i = 
         std::find_if(modules.begin(), modules.end(), finder);
     if(i==modules.end()){
@@ -436,7 +436,7 @@ start_expression:
 
     bool Preparse(Context *ctx, const std::string &str){
         
-        static uint32_t scope_level = 0;
+        //static uint32_t scope_level = 0;
         ctx->AddTok(NOP);
         
         const std::string::const_iterator end = str.end();
