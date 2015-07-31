@@ -57,7 +57,7 @@ namespace Lithium{
           : accessor(a), name(n){ }
 
     };
-   
+
     struct Error ValueToInteger(const struct Value &v, int64_t &out);
     struct Error ValueToFloating(const struct Value &v, float &out);
     struct Error ValueToString(const struct Value &v, std::string &out);
@@ -67,12 +67,12 @@ namespace Lithium{
     void FloatingToValue(struct Value &v, float in);
     void StringToValue(struct Value &v, const std::string &in);
     void BooleanToValue(struct Value &v, bool in);
-   
+
     struct Error{
         bool succeeded;
         std::string error;
     };
-    
+
     /* A context roughly associates with a single type of object. */
     class Context{
         Context();
@@ -81,18 +81,24 @@ namespace Lithium{
         
         struct Label {std::string name; uint64_t offset; };
         
-        std::vector<uint8_t> bytecode;
-        std::vector<struct Label> jump_table;
-        std::vector<struct Label> procedure_table;
-        std::vector<std::string> string;
-        
+        std::vector<uint8_t> token_code;
+        std::vector<struct Label> token_jump_table;
+        std::vector<struct Label> token_procedure_table;
+        /* The string table is a list of immutable strings, 
+            such as string constants and variable names */
+        std::vector<std::string> string_table;
         
         std::vector<Variable> variables;
         std::vector<Property> accessors;
         std::vector<struct Module> modules;
         void *object;
         
+        uint32_t VerifyString(const std::string &str);
+        void VerifyAndWriteStringIndex(const std::string &str);
+        
         struct Error AddVariable(const std::string &name, struct Value &v, unsigned scope);
+        
+        inline void AddTok(uint8_t t){ token_code.push_back(t); }
         
     public:
         
