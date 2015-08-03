@@ -93,7 +93,7 @@ namespace Lithium{
         std::vector<struct Module> modules;
         void *object;
         
-        uint32_t VerifyString(const std::string &str);
+        uint64_t VerifyString(const std::string &str);
         void VerifyAndWriteStringIndex(const std::string &str);
         
         struct Error AddVariable(const std::string &name, struct Value &v, unsigned scope);

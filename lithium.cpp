@@ -1,6 +1,7 @@
 #include "lithium.hpp"
 #include "bytecode_utils.hpp"
 #include "strtoll.h"
+#include "attribute.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -229,8 +230,8 @@ struct Error Context::SetProperty(const std::string &name, const struct Value &v
     }
 }
 
-uint32_t Context::VerifyString(const std::string &str){
-    uint32_t i = 0;
+uint64_t Context::VerifyString(const std::string &str){
+    uint64_t i = 0;
     while((i<string_table.size()) && (string_table[i] != str))
         i++;
 
@@ -240,7 +241,7 @@ uint32_t Context::VerifyString(const std::string &str){
 }
 
 void Context::VerifyAndWriteStringIndex(const std::string &str){
-    Utils::AppendObject<int32_t>(VerifyString(str), token_code);
+    Utils::AppendObject<int64_t>(VerifyString(str), token_code);
 }
 
 class Parse {
@@ -259,24 +260,35 @@ public:
         DIVIDE,
         REMAINDER,
         
+        /* Syntactical Modifiers */
+        PAREN_OPEN,
+        PAREN_CLOSE,
+        
+        /* !!! DO NOT USE !!! */
+        OPEN_SCOPE,
+        /* !!! DO NOT USE !!! */
+        CLOSE_SCOPE,
+        
         /* Access -- each is followed by a 64-bit string-table offset for the name (x) */
         
-        GET_PROPERTY, // get x
-        SET_PROPERTY, // set x
-        GET_VARIABLE, // get local x
-        SET_VARIABLE, // set local x
+        PROPERTY_GET, // get x
+        PROPERTY_SET, // set x
+        VARIABLE_GET, // get local x
+        VARIABLE_SET, // set local x
         
         /* Module Access -- each followed by a 64-bit string-table offset for the module name (x)
          * and then a second for the property name (y) */
         
-        TO_MODULE,    // to x y
-        FROM_MODULE,  // from x y
+        MODULE_GET,  // from x y
+        MODULE_SET,  // to x y
         
         /* Labels -- each followed by a 64-bit jump-table offset corresponding to the
          * matching ending label (x) (for starting labels) or starting label (y) (for end labels). */
         START_IF_LABEL, // if {...} : (x)
+        END_IF_CONDITIONAL, // {...} (y)
         END_IF_LABEL, // . (y)
         START_LOOP_LABEL, // loop {...} : (x)
+        END_LOOP_CONDITIONAL, // {...} (y)
         END_LOOP_LABEL, // . (y)
         
         /* Declarations -- each followed by a 64-bit string-table offset for the name (x) */
@@ -285,16 +297,30 @@ public:
         DECLARE_BOOL, // bool x
         DECLARE_STRING, // string x
         
+        /* Literals -- Integrals are followed by a native-format representation, strings by a 64-bit
+         * string-table offset.
+         * Sizes and formats of (x):
+         *    int - 64-bit signed integer
+         *    float - 32-bit IEEE/native float
+         *    bool - 8-bit word, 0 is false, anything else is true
+         *    string - 64-bit string-table offset
+         * */
+        
+        LITERAL_INTEGER, // int
+        LITERAL_FLOAT,   // float
+        LITERAL_BOOL,    // bool
+        LITERAL_STRING,  // string
+        
         /* TERMINATOR */
         NOP2
         
     };
     
-    static bool IsWhitespace(char c){
+    static bool IsWhitespace(char c) Li_WARN_IGNORED_RESULT {
         return c==' ' || c=='\t' || c=='\n' || c=='\r';
     }
     
-    static bool IsSyntax(char c){
+    static bool IsSyntax(char c) Li_WARN_IGNORED_RESULT {
         return (c>=35 && c<=47 && c!=46) || (c>=91 && c<=96) || (c>=123 && c<=126) || (c>=58 && c<=64);
     }
     
@@ -302,11 +328,180 @@ public:
         while(i!=end && IsWhitespace(*i)) i++;
     }   
     
-    static std::string GetIdentifier(std::string::const_iterator &i, const std::string::const_iterator end){
+    static std::string GetIdentifier(std::string::const_iterator &i, const std::string::const_iterator end) Li_WARN_IGNORED_RESULT {
         SkipWhitespace(i, end);
         const std::string::const_iterator start = i;
         while(i!=end && !IsWhitespace(*i) && !IsSyntax(*i)) i++;
         return std::string(start, i);
+    }
+    
+    static inline std::string InnerConditonalError(const char *t, TokenCode last_conditional_start) Li_WARN_IGNORED_RESULT {
+        std::string err = "Unexpected '";
+        err+= t;
+        err+= "' inside existing ";
+        if(last_conditional_start==START_IF_LABEL)
+            err+= "'if' conditional";
+        else if(last_conditional_start==START_LOOP_LABEL)
+            err+= "'loop' conditional";
+        else
+            err += " conditional :(we also had an internal error):";
+        return err;
+    }
+    
+    static inline std::string ExpectedBeforeError(const char *t, const char *before = NULL) Li_WARN_IGNORED_RESULT {
+        if(before==NULL)
+            before = "EOF";
+        std::string err = "Expected ";
+        err+=t;
+        err+= " before ";
+        err+= before;
+        return err;
+    }
+    
+    /* The base token parsing and encoding logic for accesses
+     * ( { {'get' | 'set' } ['local'] | 'to' | 'from'} ) 
+     * Sensitive to EOF's. */
+    enum AccessLocality  { ModuleAccess = 0,   SelfAccess = 1<<1     };
+    enum AccessDirection { GetAccess = 0,      SetAccess  = 1<<2      };
+    bool TokenizeAccess(Context *ctx, 
+        int Flags,
+        std::string::const_iterator &i, const std::string::const_iterator end) Li_WARN_IGNORED_RESULT {
+        
+        SkipWhitespace(i, end);
+        if(i==end){
+            err.succeeded = false;
+            err.error = ExpectedBeforeError("Propery name or 'local'", "");
+            return false;
+        }
+        const std::string what = GetIdentifier(i, end);
+        if(what=="local"){
+            if(!(Flags&SelfAccess)){
+                err.succeeded = false;
+                err.error = "Cannot access local variable of remote module";
+                return false;
+            }
+            
+            SkipWhitespace(i, end);
+            if(i==end){
+                err.succeeded = false;
+                err.error = ExpectedBeforeError("Propery name or 'local'");
+                return false;
+            }
+            const std::string variable_name = GetIdentifier(i, end);
+            
+            ctx->AddTok((Flags&GetAccess)?VARIABLE_GET:VARIABLE_SET);
+            ctx->VerifyAndWriteStringIndex(variable_name);
+        }
+        else if(Flags&SelfAccess){
+            ctx->AddTok((Flags&GetAccess)?PROPERTY_GET:PROPERTY_SET);
+            ctx->VerifyAndWriteStringIndex(what);
+        }
+        else{
+            ctx->AddTok((Flags&GetAccess)?MODULE_GET:MODULE_SET);
+            ctx->VerifyAndWriteStringIndex(what);
+            
+            SkipWhitespace(i, end);
+            if(i==end){
+                err.succeeded = false;
+                err.error = ExpectedBeforeError("Propery name for remote module");
+                return false;
+            }
+            const std::string remote_property_name = GetIdentifier(i, end);
+            ctx->VerifyAndWriteStringIndex(remote_property_name);
+
+        }
+        return true;
+    }
+
+    /* Note that this can only handle very, very rough syntax parsing */
+    bool EncodeTokens(Context *ctx, const std::string &in){
+        /* A good rule of thumb--most tokencode will be less than half the size
+         * of the input string (usually much less than half). */
+        ctx->token_code.reserve(in.size()>>1);
+        
+        std::string::const_iterator i = in.begin();
+        const std::string::const_iterator end = in.end();
+        
+        TokenCode last_conditional_start = NOP;
+        
+        err.succeeded = true;
+        
+        while(i!=end){
+            
+start_whitespace_search:
+            
+            if(i==end){
+                break;
+            }
+            else if(IsWhitespace(*i)){
+                i++;
+                goto start_whitespace_search;
+            }
+            
+            const std::string token = GetIdentifier(i, end);
+            
+            /* Special opt for single-char tokens */
+            if(token.size()==1){
+                const char c = token[0];
+                switch(c){
+                    case '+':
+                        ctx->AddTok(PLUS); continue;
+                    case '-':
+                        ctx->AddTok(MINUS); continue;
+                    case '*':
+                        ctx->AddTok(MULTIPLY); continue;
+                    case '/':
+                        ctx->AddTok(DIVIDE); continue;
+                    case '%':
+                        ctx->AddTok(REMAINDER); continue;
+                    case '(':
+                        ctx->AddTok(PAREN_OPEN); continue;
+                    case ')':
+                        ctx->AddTok(PAREN_CLOSE); continue;
+                    default:
+                        break;
+                }
+            }
+            
+            if(token=="get"){
+                if(!TokenizeAccess(ctx, GetAccess|SelfAccess, i, end))
+                    return false;
+            }
+            else if(token=="set"){
+                if(!TokenizeAccess(ctx, SetAccess|SelfAccess, i, end))
+                    return false;
+            }
+            else if(token=="from"){
+                if(!TokenizeAccess(ctx, GetAccess|ModuleAccess, i, end))
+                    return false;
+            }
+            else if(token=="to"){
+                if(!TokenizeAccess(ctx, SetAccess|ModuleAccess, i, end))
+                    return false;
+            }
+            else if(token=="if"){
+                if(last_conditional_start!=NOP){
+                    err.succeeded = false;
+                    err.error = InnerConditonalError("if", last_conditional_start);
+                }
+                ctx->AddTok(START_IF_LABEL);
+                last_conditional_start = START_IF_LABEL;
+            }
+                        
+            if(token=="loop"){
+                if(last_conditional_start!=NOP){
+                    err.succeeded = false;
+                    err.error = InnerConditonalError("loop", last_conditional_start);
+                }
+                ctx->AddTok(START_LOOP_LABEL);
+                last_conditional_start = START_LOOP_LABEL;
+            }
+            
+
+        }
+        
+        return true;
+        
     }
     
     template<typename T, Value::Type To>
