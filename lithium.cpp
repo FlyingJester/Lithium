@@ -56,23 +56,6 @@ struct remainder<float> {
     }
 };
 
-void Variable::CopyValueString(){
-    if(value.type!=Value::String) return;
-    
-    const uint64_t nl = strlen(value.value.string);
-    char * const c = (char *)malloc((size_t)nl+1);
-    memcpy(c, value.value.string, (size_t)nl+1);
-    value.value.string = c;
-}
-
-Variable::~Variable(){
-    if(value.type==Value::String) free(value.value.string);
-}   
-
-Property::Property(){
-    name = "<INVALID>";
-}
-
 Context::Context(){
 
 }
@@ -87,23 +70,19 @@ Context::~Context(){
 }
 
 struct Error Context::AddModule(const std::string &name, Context *ctx){
-    struct Utils::name_finder<struct Module> finder(name);
-    if(std::find_if(modules.begin(), modules.end(), finder)!=modules.end()){
+    if(GetModule(name)){
         const struct Error e = {false, std::string("Module ") + name + " already exists"};
         return e;
     }
     else{
-        struct Module m = {name, ctx};
-        modules.push_back(m);
+        modules[name] = ctx;
         const struct Error e = {true};
         return e;
     }
 }
 
 struct Error Context::RemoveModule(const std::string &name){
-    struct Utils::name_finder<struct Module> finder(name);
-    std::vector<struct Module>::iterator i = 
-        std::find_if(modules.begin(), modules.end(), finder);
+    std::map<std::string, Context *>::const_iterator i = modules.find(name);
     if(i==modules.end()){
         struct Error e = {false, std::string("Module ") + name + " does not exist"};
         return e;
@@ -116,39 +95,33 @@ struct Error Context::RemoveModule(const std::string &name){
 }
 
 struct Error Context::SetModule(const std::string &name, Context *ctx){
-    struct Utils::name_finder<struct Module> finder(name);
-    std::vector<struct Module>::iterator i = 
-        std::find_if(modules.begin(), modules.end(), finder);
+    std::map<std::string, Context *>::iterator i = modules.find(name);
     if(i==modules.end()){
         struct Error e = {false, std::string("Module ") + name + " does not exist"};
         return e;
     }
     else{
-        i->ctx = ctx;
+        i->second = ctx;
         struct Error e = {true};
         return e;
     }
 }
 
 Context *Context::GetModule(const std::string &name){
-    struct Utils::name_finder<struct Module> finder(name);
-    
-    std::vector<struct Module>::const_iterator i = 
-        std::find_if(modules.begin(), modules.end(), finder);
 
+    std::map<std::string, Context *>::const_iterator i = modules.find(name);
     if(i==modules.end()) return NULL;
-    return i->ctx;
+    return i->second;
 }
         
 struct Error Context::AddAccessor(const std::string &name, Accessor a){
-    struct Utils::name_finder<Property> finder(name);
     
-    if(std::find_if(accessors.begin(), accessors.end(), finder)!=accessors.end()){
+    if(GetAccessor(name)){
         const struct Error e = {false, std::string("Accessor ") + name + " already exists"};
         return e;
     }
     /* else */ {
-        accessors.push_back(Property(name, a));
+        accessors[name] = a;
         const struct Error e = {true};
         return e;
     }
@@ -156,50 +129,43 @@ struct Error Context::AddAccessor(const std::string &name, Accessor a){
 
 Accessor Context::GetAccessor(const std::string &name){
 
-    struct Utils::name_finder<Property> finder(name);
-    std::vector<Property>::const_iterator i = 
-        std::find_if(accessors.begin(), accessors.end(), finder);
+    std::map<std::string, Accessor>::iterator i = accessors.find(name);
 
     if(i==accessors.end()) return NULL;
-    return i->accessor;
+    return i->second;
 }
 
-struct Error Context::AddVariable(const std::string &name, struct Value &v, unsigned n){
-    struct Utils::name_finder<Variable> finder(name);
-    if(std::find_if(variables.begin(), variables.end(), finder)!=variables.end()){
+struct Error Context::AddVariable(const std::string &name, struct Value &v){
+    if(GetVariable(name).type!=Value::Null){
         const struct Error e = {false, std::string("Variable ") + name + " already exists"};
         return e;
     }
     /* else */ {
-        variables.push_back(Variable(name, v, n));
+        variables[name] = v;
         const struct Error e = {true};
         return e;
     }
 }
 
 struct Value Context::GetVariable(const std::string &name){
-    struct Utils::name_finder<Variable> finder(name);
-    std::vector<Variable>::const_iterator i = 
-        std::find_if(variables.begin(), variables.end(), finder);
+    std::map<std::string, struct Value>::iterator i = variables.find(name);
     if(i==variables.end()){
         struct Value v = {Value::Null};
         return v;
     }
     else{
-        return i->value;
+        return i->second;
     }
 }
 
 struct Error Context::SetVariable(const std::string &name, const struct Value &v){
-    struct Utils::name_finder<Variable> finder(name);
-    std::vector<Variable>::iterator i = 
-        std::find_if(variables.begin(), variables.end(), finder);
+    std::map<std::string, struct Value>::iterator i = variables.find(name);
     if(i==variables.end()){
         struct Error e = {false, std::string("Variable ") + name + " does not exist"};
         return e;
     }
     else{
-        i->value = v;
+        i->second = v;
         struct Error e = {true};
         return e;
     }
@@ -503,13 +469,6 @@ public:
         return first;
     }
     
-    void CleanScope(Context *ctx){
-        /* Clean up the stack. */
-        std::vector<Variable>::iterator i = ctx->variables.begin();
-        while(i!=ctx->variables.end() && i->scope<scope) i++;
-        ctx->variables.erase(i, ctx->variables.end());
-    }
-    
     static void SkipScope1(std::string::const_iterator &i, const std::string::const_iterator end){
         unsigned l_scope = 0;
         
@@ -558,7 +517,8 @@ public:
         i++;
         SkipWhitespace(i, end);
 
-        CleanScope(ctx);
+// TODO: scoping!
+//        CleanScope(ctx);
         
         scope--;
 
@@ -720,7 +680,8 @@ public:
                     err = e;
                 }
                 else{
-                    err = ctx->AddVariable(name, new_value, scope);
+// TODO: Scoping
+                    err = ctx->AddVariable(name, new_value);
 //                    if(err.succeeded)
 //                        printf("Created integer variable %s with value %i\n", name.c_str(), (int)new_value.value.integer);
                     

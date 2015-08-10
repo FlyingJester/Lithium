@@ -3,6 +3,7 @@
 #include <cstring>
 #include <stdint.h>
 #include <vector>
+#include <map>
 
 namespace Lithium{
 
@@ -19,45 +20,11 @@ namespace Lithium{
     
     Value::Type MutualCast(Value::Type a, Value::Type b);
     inline Value::Type MutualCast(const struct Value &a, const struct Value &b){ return MutualCast(a.type, b.type); }
-
-    class Variable{
-        Variable(){}
-    public:
-        struct Value value;
-        std::string name;
-        unsigned scope;
-       
-        void CopyValueString();
-       
-        Variable(const std::string &n, const struct Value &v, unsigned s)
-          : value(v), name(n), scope(s){
-            CopyValueString();
-        }
-              
-        Variable(const char *n, const struct Value &v, unsigned s)
-          : value(v), name(n), scope(s){
-            CopyValueString();
-        }
-        
-        
-        ~Variable();
-    };
     
     enum Mode {Set, Get};
     
     typedef bool(*Accessor)(void *a, struct Value &v, Mode mode);
     
-    class Property{
-        Property();
-    public:
-        Accessor accessor;
-        std::string name;
-        
-        Property(const std::string &n, Accessor a)
-          : accessor(a), name(n){ }
-
-    };
-
     struct Error ValueToInteger(const struct Value &v, int64_t &out);
     struct Error ValueToFloating(const struct Value &v, float &out);
     struct Error ValueToString(const struct Value &v, std::string &out);
@@ -77,26 +44,22 @@ namespace Lithium{
     class Context{
         Context();
         
-        struct Module { std::string name; Context *ctx; };
-        
-        struct Label {std::string name; uint64_t offset; };
-        
         std::vector<uint8_t> token_code;
-        std::vector<struct Label> token_jump_table;
-        std::vector<struct Label> token_procedure_table;
+        std::map<std::string, uint64_t> token_jump_table;
+        std::map<std::string, uint64_t> token_procedure_table;
         /* The string table is a list of immutable strings, 
             such as string constants and variable names */
         std::vector<std::string> string_table;
-        
-        std::vector<Variable> variables;
-        std::vector<Property> accessors;
-        std::vector<struct Module> modules;
+
+        std::map<std::string, struct Value> variables;
+        std::map<std::string, Accessor> accessors;
+        std::map<std::string, Context *> modules;
         void *object;
         
         uint32_t VerifyString(const std::string &str);
         void VerifyAndWriteStringIndex(const std::string &str);
         
-        struct Error AddVariable(const std::string &name, struct Value &v, unsigned scope);
+        struct Error AddVariable(const std::string &name, struct Value &v);
         
         inline void AddTok(uint8_t t){ token_code.push_back(t); }
         
@@ -118,10 +81,6 @@ namespace Lithium{
 
         struct Error SetAccessor(const std::string &name, Accessor);
         Accessor GetAccessor(const std::string &name);
-
-        inline struct Error AddVariable(const std::string &name, struct Value &v){
-            return AddVariable(name, v, 0);
-        }
 
         struct Value GetVariable(const std::string &name);
         struct Error SetVariable(const std::string &name, const struct Value &v);
