@@ -82,7 +82,7 @@ struct Error Context::AddModule(const std::string &name, Context *ctx){
 }
 
 struct Error Context::RemoveModule(const std::string &name){
-    std::map<std::string, Context *>::const_iterator i = modules.find(name);
+    std::map<std::string, Context *>::iterator i = modules.find(name);
     if(i==modules.end()){
         struct Error e = {false, std::string("Module ") + name + " does not exist"};
         return e;
